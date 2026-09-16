@@ -1,3 +1,53 @@
+# Purchase Tracking
+
+## 1. Overview
+This document outlines the measurement of verified revenue events. It details how MsingiPACK tracks successful course enrollments via M-PESA, ensuring that analytics platforms only record purchases that have been financially verified and linked to unique transaction identifiers.
+
+## 2. Original Measurement Problem
+In previous iterations, purchase tracking was tied to front-end page loads or checkout button clicks. This led to high discrepancies where users loading a payment page, initiating an M-PESA STK prompt, or refreshing a receipt page generated false revenue in analytics. 
+
+## 3. Purchase Definition
+A purchase in the MsingiPACK architecture is strictly defined as:
+**Purchase = Verified successful payment + Unique transaction identifier**
+
+The system does NOT count the following as a purchase:
+*   Checkout button clicks
+*   Payment page views
+*   M-PESA STK prompt appearances
+*   Receipt page loads (without backend verification)
+
+## 4. Source of Truth
+Revenue measurement relies on a strict hierarchy of truth:
+1.  **M-PESA / Bank:** Financial confirmation (The ultimate source of truth).
+2.  **Moodle:** Application/account state (Course unlocked).
+3.  **GTM:** Measurement orchestration.
+4.  **GA4 / Meta:** Analytics destinations.
+
+Analytics data is treated as a reflection of financial reality, not the reality itself.
+
+## 5. Payment Confirmation Flow
+The lifecycle of a verified purchase is as follows:
+User ➔ Checkout ➔ M-PESA STK ➔ Payment result ➔ Moodle/Payment Handler ➔ Verified Success
+
+Once verified:
+Verified Success ➔ `mpesa_purchase_success` ➔ dataLayer ➔ GTM
+
+## 6. Purchase Event
+When Moodle confirms the M-PESA callback was successful, it pushes the following payload to the `dataLayer`:
+
+javascript
+window.dataLayer.push({
+  event: 'mpesa_purchase_success',
+  value: 2400.00,
+  currency: 'KES',
+  transaction_id: 'NL810XX99',
+  items: [{
+item_name: 'MsingiPACK CBC Grade 4',
+item_id: 'COURSE-GR4',
+price: 2400.00,
+quantity: 1
+}]
+}); 
 ## 7. Transaction Identity
 The core of our revenue tracking is the Transaction Identity. 
 M-PESA receipt ➔ `transaction_id` ➔ GA4 transaction identifier ➔ Meta `eventID`
