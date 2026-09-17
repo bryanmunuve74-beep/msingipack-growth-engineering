@@ -21,22 +21,20 @@ Moodle LMS
 Registration → Activation → Payment
 ```
 
-The project focused on improving visibility across this customer journey and resolving measurement failures that made it difficult to distinguish genuine user conversions from frontend interactions, preserve campaign attribution, and reconcile digital analytics with actual payment activity.
+The project focused on improving visibility across this customer journey and resolving measurement failures that made it difficult to distinguish genuine user conversions from frontend interactions, preserve campaign context, and reconcile digital analytics with actual payment activity.
 
 ---
 
 ## Business Problem
 
-The existing measurement environment contained several structural gaps across the acquisition and conversion funnel.
+The existing measurement environment contained structural gaps across the acquisition and conversion funnel:
 
-Key issues identified included:
-
-* Loss of campaign attribution between the marketing site and Moodle LMS.
-* Registration events being associated with user intent rather than verified account creation.
-* Weak visibility into post-registration activation.
-* Duplicate or incomplete purchase event measurement.
-* Disconnects between GA4, Meta, Moodle, and financial payment records.
-* Front-end performance issues affecting the mobile user journey.
+* Campaign parameters could be lost during navigation into Moodle.
+* Registration measurement could represent user intent rather than confirmed account creation.
+* Post-registration activation was not cleanly separated from registration.
+* Purchase measurement could be duplicated by browser behavior.
+* GA4, Meta, Moodle, and payment records were not consistently reconciled.
+* Front-end performance issues created additional mobile user-journey friction.
 
 These issues reduced confidence in funnel analysis, campaign measurement, and revenue reporting.
 
@@ -44,18 +42,14 @@ These issues reduced confidence in funnel analysis, campaign measurement, and re
 
 ## Project Objectives
 
-The project was designed around four primary objectives:
-
 1. Establish a reliable analytics and measurement architecture.
-2. Preserve campaign attribution across the MsingiPACK web and LMS environments.
-3. Measure verified registration and purchase events rather than relying on superficial UI interactions.
+2. Preserve campaign metadata across the MsingiPACK web and LMS environments.
+3. Measure verified registration and purchase events rather than superficial UI interactions.
 4. Validate analytics data against Moodle and payment records.
 
 ---
 
 ## What I Worked On
-
-The implementation and analysis covered:
 
 * Google Analytics 4 and Google Tag Manager architecture.
 * Event and measurement schema design.
@@ -68,8 +62,10 @@ The implementation and analysis covered:
 * Transaction-based purchase deduplication.
 * GTM tags, triggers, variables, and custom JavaScript.
 * Analytics debugging and validation.
-* GA4, Meta, Moodle, and payment-data reconciliation.
+* GA4, Meta, Moodle, and payment-data reconciliation methodology.
 * Page performance and payload analysis.
+
+The current implementation is primarily client-side. Meta CAPI, GA4 Measurement Protocol, and GTM Server-Side are documented as future enhancements rather than completed components.
 
 ---
 
@@ -113,86 +109,28 @@ Moodle LMS
        ▼
       GTM
       ├── GA4
-      └── Meta
+      └── Meta Pixel
 ```
-
-The detailed architecture is documented in [`02-analytics-architecture/`](02-analytics-architecture/).
 
 ---
 
 ## Repository Structure
 
-```text
-01-business-context/
-```
-
-Defines the business problem, funnel, leakage points, and success metrics.
-
-```text
-02-analytics-architecture/
-```
-
-Documents the measurement architecture, measurement plan, event schema, and data flow.
-
-```text
-03-gtm/
-```
-
-Documents the GTM container, tags, triggers, variables, and custom JavaScript implementation.
-
-```text
-04-attribution/
-```
-
-Documents UTM persistence, FBCLID persistence, cross-subdomain tracking, and the end-to-end attribution flow.
-
-```text
-05-conversion-tracking/
-```
-
-Documents registration, purchase, payment-failure, and deduplication architecture.
-
-```text
-06-debugging/
-```
-
-Documents observed problems, technical hypotheses, tests, and validation results.
-
-```text
-07-data-validation/
-```
-
-Documents reconciliation between GA4, Moodle, Meta, and payment data.
-
-```text
-08-performance/
-```
-
-Documents PageSpeed findings, payload analysis, and performance issues affecting the user journey.
-
-```text
-09-results/
-```
-
-Documents before/after comparisons, business implications, and project limitations.
-
-```text
-diagrams/
-```
-
-Contains editable Mermaid architecture diagrams used throughout the documentation.
-
-```text
-evidence/
-```
-
-Contains sanitized screenshots and non-sensitive supporting outputs.
+* `01-business-context/` — business problem, funnel, leakage points, and success metrics.
+* `02-analytics-architecture/` — measurement architecture, measurement plan, event schema, and data flow.
+* `03-gtm/` — GTM container, tags, triggers, variables, and custom JavaScript.
+* `04-attribution/` — UTM persistence, FBCLID persistence, cross-subdomain tracking, and attribution flow.
+* `05-conversion-tracking/` — registration, purchase, payment failure, and deduplication architecture.
+* `06-debugging/` — observed problems, hypotheses, tests, and validation results.
+* `07-data-validation/` — reconciliation methodology and pending GA4/Moodle/Meta comparisons.
+* `08-performance/` — PageSpeed findings, payload analysis, and performance issues.
+* `09-results/` — implementation outcomes, business implications, and limitations.
+* `diagrams/` — architecture diagrams.
+* `evidence/` — sanitized supporting evidence.
 
 ---
 
 ## Key Measurement Principles
-
-The implementation is based on several important distinctions:
 
 ```text
 CTA Click
@@ -222,8 +160,6 @@ The architecture therefore treats backend business states and verified payment r
 
 ## Conversion Architecture
 
-The core conversion lifecycle is:
-
 ```text
 Registration
      │
@@ -243,7 +179,7 @@ payment_failed   mpesa_purchase_success
                      ▼
                     GTM
                   /     \
-                GA4     Meta
+                GA4    Meta Pixel
 ```
 
 Successful purchase measurement uses a transaction identifier to connect the analytics event to the underlying financial transaction.
@@ -253,8 +189,6 @@ See [`05-conversion-tracking/`](05-conversion-tracking/).
 ---
 
 ## Attribution Architecture
-
-Campaign parameters are captured when users arrive from tagged acquisition links.
 
 ```text
 UTM / FBCLID
@@ -275,7 +209,9 @@ academy.msingipack.com
 Conversion
 ```
 
-The attribution implementation is documented in [`04-attribution/`](04-attribution/).
+The attribution implementation preserves campaign metadata. It does not by itself override GA4's native attribution model or guarantee cross-device continuity.
+
+See [`04-attribution/`](04-attribution/).
 
 ---
 
@@ -297,28 +233,15 @@ Fix
 Validation
 ```
 
-Validation considers the relationship between:
+Validation considers the relationship between GA4, Meta, Moodle, M-PESA/Bank records, GTM, and Data Layer events.
 
-* GA4
-* Meta
-* Moodle
-* M-PESA / bank records
-* GTM and Data Layer events
-
-The detailed investigation and validation work is documented in [`06-debugging/`](06-debugging/) and [`07-data-validation/`](07-data-validation/).
+See [`06-debugging/`](06-debugging/) and [`07-data-validation/`](07-data-validation/).
 
 ---
 
 ## Performance Analysis
 
-The performance work examines:
-
-* Mobile loading performance.
-* Core Web Vitals.
-* Page payload size.
-* Large media assets.
-* JavaScript and rendering overhead.
-* The relationship between technical performance and the user journey.
+The performance work examines mobile loading performance, Core Web Vitals, page payload size, large media assets, JavaScript/rendering overhead, and their relationship to the user journey.
 
 See [`08-performance/`](08-performance/).
 
@@ -328,7 +251,7 @@ See [`08-performance/`](08-performance/).
 
 Results are separated into:
 
-* Observed and validated outcomes.
+* Observed implementation changes.
 * Measurement improvements.
 * Business implications.
 * Modelled opportunities.
@@ -344,25 +267,15 @@ See [`09-results/`](09-results/).
 
 Supporting evidence is stored in sanitized form under [`evidence/`](evidence/).
 
-Evidence may include:
-
-* GTM configuration screenshots.
-* GTM Preview results.
-* Browser Network / Application evidence.
-* GA4 validation screenshots.
-* Meta validation screenshots.
-* Data reconciliation outputs.
-* PageSpeed and performance results.
-
 Production credentials, access tokens, payment credentials, and personally identifiable information are excluded.
 
 ---
 
 ## Project Status
 
-The repository documents the investigation, architecture, implementation, debugging, validation, and performance analysis performed during the MsingiPACK Growth Engineering project.
+The repository documents the investigation, architecture, implementation, debugging, validation methodology, and performance analysis performed during the MsingiPACK Growth Engineering project.
 
-Some commercial outcomes require additional post-deployment measurement periods before they can be treated as validated results.
+Some commercial outcomes require additional post-deployment measurement before they can be treated as validated results.
 
 ---
 
@@ -371,9 +284,9 @@ Some commercial outcomes require additional post-deployment measurement periods 
 Start with:
 
 1. [`01-business-context/problem-definition.md`](01-business-context/problem-definition.md)
-2. [`02-analytics-architecture/tracking-architecture.md`](02-analytics-architecture/tracking-architecture.md)
+2. [`02-analytics-architecture/tracking_architecture.md`](02-analytics-architecture/tracking_architecture.md)
 3. [`03-gtm/container-architecture.md`](03-gtm/container-architecture.md)
-4. [`04-attribution/attribution-flow.md`](04-attribution/attribution-flow.md)
+4. [`04-attribution/attribution_flow.md`](04-attribution/attribution_flow.md)
 5. [`05-conversion-tracking/purchase.md`](05-conversion-tracking/purchase.md)
 6. [`06-debugging/problems-found.md`](06-debugging/problems-found.md)
 7. [`07-data-validation/reconciliation-methodology.md`](07-data-validation/reconciliation-methodology.md)
