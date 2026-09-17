@@ -3,10 +3,10 @@
 ## Tag: GA4 Event - M-PESA Purchase
 
 ### Purpose
-Transmits e-commerce purchase metrics directly to GA4 upon a successful M-PESA transaction.
+Transmits a verified ecommerce purchase event to GA4 after the `mpesa_purchase_success` event is received.
 
 ### Business Purpose
-Logs official revenue, transaction volume, and conversion rates in GA4 executive dashboards.
+Measures transaction count and revenue in GA4 while keeping the financial source of truth in M-PESA/Bank records.
 
 ### Tag Type
 GA4 Event (Event Name: `purchase`).
@@ -25,18 +25,27 @@ GA4 Event (Event Name: `purchase`).
 Google Analytics 4.
 
 ### Key Configuration
-**Send Ecommerce Data:** Explicitly UNCHECKED. 
-*Rationale:* Disabling conflicting automatic e-commerce sending prevents array key conflicts and duplicate transactions. Furthermore, custom event parameters like `saved_utm_source` are registered as custom dimensions in GA4 to provide real-time Looker visibility into channel performance, rather than overwriting the native GA4 attribution model.
+**Send Ecommerce Data:** Explicitly UNCHECKED in the documented configuration.
+
+The purchase tag sends the required ecommerce parameters explicitly. Custom attribution fields such as `saved_utm_source` are supporting reporting fields and do not replace GA4's native acquisition or attribution dimensions.
+
+### Validation Requirements
+The purchase tag should only fire when:
+* `transaction_id` is present and non-empty.
+* `value` is a valid positive number.
+* The Data Layer event represents a verified successful payment.
+
+If these conditions are not met, the purchase signal should be blocked rather than assigned a synthetic revenue value.
 
 ---
 
 ## Tag: Pixel - M-PESA Purchase
 
 ### Purpose
-Tracks purchase conversions to Meta Events Manager with fallback numeric parsing and server/client deduplication.
+Tracks verified purchase conversions to Meta Events Manager using a stable event identifier for deduplication.
 
 ### Business Purpose
-Feeds conversion data back to Meta Ads Manager for algorithmic ad targeting and ROAS calculation.
+Provides Meta with purchase conversion signals for measurement and campaign optimization.
 
 ### Tag Type
 Custom HTML.
@@ -44,21 +53,23 @@ Custom HTML.
 ### Trigger
 `Custom Event - mpesa_purchase_success`.
 
-### Firing Logic & Fallback Behavior
-Extracts `{{dlv - value}}` and processes it through `parseFloat()`. If `isNaN()` returns true (due to an empty data layer state), the script forcefully assigns a fallback value of `300.00` to prevent runtime crashes.
+### Firing Logic
+The tag reads `{{dlv - value}}` and validates that it resolves to a valid numeric amount. Invalid or missing values should prevent the purchase signal from being sent.
 
 ### Dependencies
-Requires **Pixel - Base Code** to load `window.fbq` prior to execution. Uses `{{dlv - transaction_id}}` as the `eventID` for deduplication.
+Requires **Pixel - Base Code** to have initialized `window.fbq` before execution. The documented implementation uses `{{dlv - transaction_id}}` as the Meta event identifier.
+
+This is a client-side Pixel implementation. Meta CAPI/server-side delivery is not part of the current implementation and is documented as a future enhancement.
 
 ---
 
 ## Tag: CHTML - UTM Persistence Guard
 
 ### Purpose
-Captures URL search parameters upon initial landing and writes them to a 1st-party cookie scoped to the parent domain (`.msingipack.com`).
+Captures URL campaign parameters on landing and writes them to first-party cookies scoped to `.msingipack.com`.
 
 ### Business Purpose
-Preserves original ad campaign attribution metadata across multi-session and cross-subdomain user journeys, mitigating the issue of direct/none traffic being artificially inflated on the LMS subdomain.
+Preserves campaign metadata across navigation and subdomain transitions so downstream conversion events can retain supporting attribution context.
 
 ### Tag Type
 Custom HTML.
@@ -68,7 +79,9 @@ Initialization - All Pages.
 
 ### Key Configuration
 * **Execution Priority:** 100.
-* **Storage Mechanism:** Stored in first-party cookies.
-* **Persistence Window:** A 30-day persistence window (`max-age=2592000`) was selected as the project's attribution design choice.
+* **Storage Mechanism:** First-party cookies.
+* **Persistence Window:** 30 days (`max-age=2592000`).
 * **Security Flags:** `SameSite=Lax; Secure`.
-* **Variables Captured:** `utm_source`, `utm_medium`, `utm_campaign`, `gclid`, `fbclid`, `ttclid`, `gbraid`, `wbraid`. Note: This tag purely handles the *storage* of identifiers like `fbclid` in a first-party cookie; it does not automatically facilitate Meta CAPI matching unless configured downstream.
+* **Variables Captured:** `utm_source`, `utm_medium`, `utm_campaign`, `gclid`, `fbclid`, `ttclid`, `gbraid`, `wbraid`, subject to the current implementation/configuration.
+
+The tag only persists identifiers. It does not by itself implement Meta CAPI matching or server-side conversion delivery.
