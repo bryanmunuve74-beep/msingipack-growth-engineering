@@ -1,86 +1,79 @@
 # UTM Persistence
 
 ## 1. Overview
-Campaign parameters (UTMs) are appended to acquisition URLs to pass marketing context. However, these parameters natively exist only during the initial page load. As users navigate through the site, the URL updates and the parameters disappear. This document outlines how MsingiPACK captures and persists these parameters to ensure downstream conversions retain their original campaign context.
+Campaign parameters are present on tagged acquisition URLs but can disappear as users navigate through the site. MsingiPACK captures selected campaign parameters and stores them in first-party cookies so the values remain available across the marketing site and Academy subdomain.
 
 ## 2. Problem Being Solved
-Before this implementation, the attribution flow suffered from a fundamental disconnect:
-`Meta/Google campaign → URL contains UTMs → User navigates site → Parameters disappear → Conversion has no campaign context`
+Before the persistence layer, the documented failure path was:
+`Campaign URL → user navigates → URL parameters disappear → downstream event has less campaign context`
 
-This resulted in:
-* Incorrect acquisition classification (paid traffic categorized as direct/referral).
-* Attribution degradation across the funnel.
-* Difficulty measuring true campaign performance.
-* Inability to confidently connect paid traffic to revenue.
+The implementation addresses this by retaining campaign metadata separately from the URL.
 
-## 3. UTM Parameters Captured
-The system specifically listens for and captures standard marketing parameters. 
+## 3. Parameters Captured
 
 | Parameter | Purpose | Captured? | Persisted? |
 | :--- | :--- | :--- | :--- |
-| `utm_source` | Campaign source (e.g., facebook, google) | Yes | Yes |
-| `utm_medium` | Marketing medium (e.g., cpc, social) | Yes | Yes |
-| `utm_campaign` | Campaign identifier / name | Yes | Yes |
-| `gclid` | Google Ads click identifier | No* | No |
-| `gbraid` / `wbraid` | iOS14+ Google identifiers | No* | No |
-| `ttclid` | TikTok click identifier | No* | No |
-
-*(Note: Click identifiers like GCLID are natively handled by platform-specific tags, but for our custom persistence architecture, we strictly manage UTMs and FBCLID. FBCLID is documented separately in `fbclid-persistence.md`)*
+| `utm_source` | Campaign source | Yes | Yes |
+| `utm_medium` | Marketing medium | Yes | Yes |
+| `utm_campaign` | Campaign identifier | Yes | Yes |
+| `fbclid` | Meta click identifier | Yes | Yes, documented separately |
+| `gclid` | Google Ads click identifier | Implementation-dependent | Document according to the active container |
+| `gbraid` / `wbraid` | Google identifiers | Implementation-dependent | Document according to the active container |
+| `ttclid` | TikTok click identifier | Implementation-dependent | Document according to the active container |
 
 ## 4. Capture Mechanism
-When a user lands on the site:
-1. The user arrives at the **Landing URL**.
-2. The browser's `URLSearchParams` parses the query string.
-3. UTM values are extracted from the URL.
-4. The persistence script is triggered.
-
-This is executed via GTM using the **CHTML - UTM Persistence Guard**:
-* **Priority:** 100 (Ensuring it fires before conversion tags).
-* **Trigger:** Initialization - All Pages.
+1. User arrives on a tagged landing URL.
+2. GTM Initialization runs the `CHTML - UTM Persistence Guard`.
+3. URL parameters are parsed.
+4. Available values are written to the attribution cookies.
 
 ## 5. Persistence Mechanism
-Once extracted, the UTM parameters are immediately written to first-party cookies. 
-`UTM parameters → saved_utm_source, saved_utm_medium, saved_utm_campaign → first-party cookie`
+`utm_source`, `utm_medium`, and `utm_campaign` are stored in first-party cookies scoped to `.msingipack.com`.
 
-By migrating these values from the volatile URL to persistent storage, the user's acquisition context travels with them across subsequent pageviews.
+This is an attribution persistence mechanism; it does not itself change GA4's native attribution processing.
 
 ## 6. Cookie Architecture
-* **Cookie Names:** `saved_utm_source`, `saved_utm_medium`, `saved_utm_campaign`
-* **Domain Scope:** `.msingipack.com` (Crucial for cross-subdomain tracking)
-* **Path:** `/` (Available site-wide)
-* **Secure Flag:** `true` (HTTPS only)
-* **Overwrite Behavior:** If new UTMs are detected in a subsequent visit, the cookie values are overwritten with the latest touchpoint data.
+* **Cookie Names:** `saved_utm_source`, `saved_utm_medium`, `saved_utm_campaign`.
+* **Domain Scope:** `.msingipack.com`.
+* **Path:** `/`.
+* **Secure Flag:** `true`.
+* **Overwrite Behavior:** The current implementation updates the stored value when a later tagged visit supplies a new value. This should be treated as a **latest-touch persistence policy**, not first-touch storage.
 
 ## 7. Expiration / TTL
-* **TTL:** 30 days (`max-age = 2592000`)
-* **Rationale:** A 30-day window was chosen to encompass the typical MsingiPACK consideration-to-purchase cycle. If a user clicks an ad and returns to purchase within 30 days, the conversion will be attributed to that campaign. 
+* **TTL:** 30 days (`max-age=2592000`).
+* **Rationale:** The project selected a 30-day persistence window for the documented consideration-to-purchase journey.
+
+The 30-day TTL does not guarantee 30 days of availability in every browser because privacy controls can shorten client-side storage lifetimes.
 
 ## 8. Retrieval Mechanism
-Downstream retrieval happens automatically during user actions:
-1. First-party Cookie
-2. Cookie reader (GTM First-Party Cookie Variables)
-3. e.g., `{{cookie - saved_utm_source}}`
-4. Injected into GA4 or custom event payloads.
+1. First-party cookie
+2. GTM cookie variable / custom reader
+3. Conversion-event enrichment
+4. Analytics payload
 
 ## 9. Downstream Usage
-The retrieved values are utilized during key conversion events (like `sign_up` and `purchase`). 
-`saved_utm_* variables → GTM conversion tags → Analytics payload → GA4`
-This allows GA4 to map the conversion back to the original acquisition source, overriding the "direct" or "referral" session source that would normally occur deep in the academy.
+Persisted values may be attached to events such as `sign_up` and `purchase` as custom reporting fields.
+
+These custom fields should not be described as overriding GA4's native session/source attribution. Native GA4 attribution remains controlled by GA4's own acquisition and attribution processing.
 
 ## 10. Failure Conditions
-* **No UTM exists:** Script executes but finds no parameters; existing cookies (if any) remain untouched.
-* **Only partial UTMs exist:** Only the present parameters are updated.
-* **Cookie cannot be written:** Browser blocks first-party cookies; attribution falls back to native in-session tracking (often resulting in direct/referral).
-* **Cookie has expired:** If >30 days pass, the next visit is treated as a new acquisition source.
-* **User changes browser/device:** Cookies are device/browser-specific. A mobile click followed by a desktop purchase breaks the persistence chain.
+* No UTM exists: no new campaign values are written.
+* Partial UTMs exist: only available values are updated.
+* Cookie cannot be written: downstream custom attribution fields may be unavailable.
+* Cookie expires: stored campaign metadata is no longer available.
+* User changes device/browser: client-side cookies do not bridge devices.
+* Immediate server-side redirect occurs before GTM can execute: the browser persistence layer cannot capture the original query parameters.
 
 ## 11. Validation
-The mechanism was validated by simulating the user journey:
-`Ad URL → landing page → verify cookie created in DevTools → navigate to academy → verify cookie still available → trigger conversion event → verify attribution fields in GTM network payload.`
+Validation should confirm:
+`Tagged URL → cookie created → navigate to academy → cookie remains readable → conversion event contains the saved field`
+
+The repository's debugging section documents the redirect/persistence tests separately.
 
 ## 12. Security / Privacy Considerations
-The cookies strictly contain non-PII (Personally Identifiable Information) marketing metadata. No user identities, emails, or sensitive session tokens are stored in the UTM persistence layer.
+The documented persistence layer stores campaign identifiers rather than email addresses or other direct PII.
 
 ## 13. Limitations
-* Relies on client-side cookie storage.
-* Vulnerable to strict browser privacy features (e.g., ITP on Safari) which may cap first-party cookie lifespans to 7 days or 24 hours regardless of our 30-day TTL setting.
+* Client-side storage is vulnerable to browser privacy controls.
+* Cookies cannot bridge devices.
+* Persistence of campaign metadata does not by itself guarantee native GA4 attribution to a campaign.
