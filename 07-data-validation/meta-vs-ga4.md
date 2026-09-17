@@ -1,66 +1,78 @@
 # Meta vs GA4 Validation
 
 ## 1. Objective
-To reconcile advertising measurement differences between Meta Ads Manager and Google Analytics 4, ensuring an accurate understanding of return on ad spend (ROAS) and user acquisition.
+Document the reconciliation framework for comparing Meta Ads reporting with GA4 without assuming that either platform should exactly equal the underlying payment ledger.
 
 ## 2. Systems Compared
-* **Ad Platform:** Meta Ads Manager (Facebook/Instagram)
-* **Web Analytics:** Google Analytics 4 (GA4)
+* **Advertising Platform:** Meta Ads Manager / Meta Pixel
+* **Web Analytics:** Google Analytics 4
+* **Financial Source of Truth:** M-PESA / Bank records
 
 ## 3. Comparison Period
-* **Start Date:** [YYYY-MM-DD]
-* **End Date:** [YYYY-MM-DD]
+**Status:** Pending completion of an evidence-backed reporting-period reconciliation.
+
+Record the exact start/end dates when the relevant exports are available.
 
 ## 4. Metric Definitions
-**Important Context:** Meta Clicks $\neq$ GA4 Sessions | Meta Conversions $\neq$ GA4 Conversions | Meta-attributed Purchases $\neq$ Raw Payment Transactions
+**Important context:** Meta outbound clicks ≠ GA4 sessions; Meta-attributed conversions ≠ GA4 conversions; Meta-attributed purchases ≠ raw payment transactions.
 
-* **Meta Clicks vs GA4 Sessions:** Outbound clicks vs landing sessions after redirect, consent, ad-blockers.
-* **Meta Conversions vs GA4 Conversions:** Different attribution windows and modeling.
-* **Meta-attributed Purchases vs Raw Transactions:** View-through and 7-day click vs backend truth.
+* **Traffic:** Meta-reported outbound clicks compared with GA4 sessions attributed to Meta-related acquisition, after accounting for redirects, blocked tags, and reporting definitions.
+* **Registrations:** Meta conversion signals compared with GA4 `sign_up` events, where both are actually implemented and available.
+* **Purchases:** Meta purchase signals compared with GA4 purchases and, separately, verified M-PESA/Bank transactions.
+* **Revenue:** Meta-reported conversion value compared with GA4 revenue and financial records. Financial records remain authoritative.
 
 ## 5. Traffic Comparison
 
-| Metric | Meta (Outbound Clicks) | GA4 (Sessions from Meta) | Difference | Explanation |
+| Metric | Meta | GA4 | Difference | Explanation |
 | :--- | :--- | :--- | :--- | :--- |
-| **Traffic** | [X] | [Y] | [Z] | [e.g., Click drop-off, cookie consent denial] |
+| **Traffic** | Pending | Pending | Pending | Requires matched exports and reporting definitions |
 
-## 6. Registration / Lead Comparison
+## 6. Registration Comparison
 
-| Metric | Meta Leads | GA4 Sign-ups (Meta) | Difference | Explanation |
+| Metric | Meta | GA4 | Difference | Explanation |
 | :--- | :--- | :--- | :--- | :--- |
-| **Registrations** | [X] | [Y] | [Z] | [e.g., View-through vs Click-through] |
+| **Registrations** | Pending | Pending | Pending | Requires evidence of the corresponding Meta conversion and GA4 event |
 
 ## 7. Purchase Comparison
 
-| Metric | Meta Purchases | GA4 Purchases (Meta) | Difference | Explanation |
+| Metric | Meta | GA4 | Financial Records | Explanation |
 | :--- | :--- | :--- | :--- | :--- |
-| **Purchases** | [X] | [Y] | [Z] | [e.g., Cross-device tracking differences] |
+| **Purchases** | Pending | Pending | Pending | Match to verified transactions where possible |
 
 ## 8. Revenue Comparison
 
-| Metric | Meta Conversion Value | GA4 Revenue (Meta) | Difference | Explanation |
+| Metric | Meta Conversion Value | GA4 Revenue | Financial Revenue | Explanation |
 | :--- | :--- | :--- | :--- | :--- |
-| **Revenue** | [$X] | [$Y] | [$Z] | [e.g., GA4 data-driven vs Meta 7-day click] |
+| **Revenue** | Pending | Pending | Pending | Financial records are the reference point |
 
 ## 9. Attribution Differences
-* **Meta Attribution Setting:** [e.g., 7-day click, 1-day view]
-* **GA4 Attribution Model:** [e.g., Data-driven, Cross-channel last click]
-* **Impact:** [How these settings cause the numbers to diverge]
+Record the actual configuration used during the comparison period rather than assuming a default:
+* **Meta attribution setting:** Pending evidence.
+* **GA4 attribution/reporting configuration:** Pending evidence.
+* **Impact:** Explain the documented differences after the settings are verified.
 
 ## 10. Event Deduplication Effects
-* [Explanation of how the Meta Conversions API (CAPI) and Pixel are deduplicating events, and if any overcounting is occurring.]
+The current repository documents a client-side Meta Pixel purchase signal. Meta CAPI should **not** be included in a reconciliation as an implemented source unless a CAPI implementation and corresponding evidence exist.
+
+Where multiple Meta signals exist in the future, compare their event identifiers and deduplication behavior explicitly.
 
 ## 11. Discrepancies
-* [Substantiated reasons for every meaningful discrepancy.]
+Classify meaningful differences as:
+* Tracking loss
+* Duplicate event
+* Attribution/reporting-model difference
+* Redirect/session difference
+* Browser/privacy limitation
+* Timing difference
+* Financial/application-state difference
 
-## 12. Root Causes / Explanations
-* [Deep dive into technical or methodological reasons for the gaps.]
+## 12. Results
+**Status: Not yet measured in this repository.**
 
-## 13. Results
-* [Summary of the true performance based on the reconciliation.]
+No final Meta-vs-GA4 performance conclusion is claimed until the source exports, reporting period, and attribution settings are documented.
 
-## 14. Remaining Measurement Gaps
-* [Areas where data loss is accepted or unavoidable, like iOS 14.5+ opt-outs.]
-
----
-**Template Notes:** Fill dates, outbound clicks vs GA4 sessions, Meta vs GA4 leads/purchases/revenue, and attribution settings | **Key:** Meta 7d click 1d view vs GA4 Data-Driven
+## 13. Remaining Measurement Gaps
+* Meta and GA4 use different measurement/reporting methodologies.
+* Client-side tracking can miss events when browser controls block tags.
+* Cross-device journeys can produce different attribution outcomes.
+* Financial truth must be reconciled separately from platform-attributed conversion totals.
