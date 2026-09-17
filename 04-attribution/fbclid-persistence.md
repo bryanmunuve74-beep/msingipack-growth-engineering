@@ -1,53 +1,63 @@
 # FBCLID Persistence
 
 ## 1. Overview
-While UTM parameters provide human-readable campaign metadata, the `fbclid` (Facebook Click Identifier) is Meta's proprietary parameter used to accurately link an ad click to a downstream conversion. This document explains how MsingiPACK captures and persists the `fbclid` independently from UTMs.
+`fbclid` is a Meta click identifier that can be present on an ad landing URL. MsingiPACK captures and persists it separately from human-readable UTM campaign parameters so the identifier remains available during the documented client-side journey.
 
 ## 2. Problem Being Solved
-Meta's advertising algorithm relies heavily on matching site conversions back to ad impressions and clicks. When users navigate away from the landing page, the `fbclid` is stripped from the URL. If the conversion happens pages later, the Meta Pixel fires without the `fbclid`, severely degrading match quality, reducing ad attribution, and ultimately harming the algorithm's ability to optimize ad delivery.
+The URL can lose `fbclid` as the user navigates away from the landing page. Persisting the value provides a stable copy for downstream measurement where the implementation explicitly uses it.
 
 ## 3. FBCLID Role in Attribution
-It is important to distinguish the roles:
-* **UTM Parameters:** Standardized campaign metadata (used by GA4, internal analytics).
-* **FBCLID:** Meta's specific click identifier (used exclusively by Meta to identify the exact user/click combination).
+* **UTM parameters:** Human-readable campaign metadata for analytics/reporting.
+* **FBCLID:** Platform-specific click identifier associated with Meta traffic.
 
-By preserving the `fbclid`, we ensure that even if Meta's native first-party cookie (`_fbc`) fails or drops, we have a redundant layer to pass back to the Pixel or Conversions API.
+Persisting `fbclid` does not by itself guarantee Meta attribution or conversion matching. Meta's own browser identifiers and event-processing rules remain relevant.
 
 ## 4. Capture Mechanism
-`Meta Ad → fbclid appended to URL → Landing page → URL parsed → Persistence layer`
-The same Initialization tag (`CHTML - UTM Persistence Guard`) that looks for UTMs simultaneously listens for the `fbclid` query parameter.
+`Meta Ad → landing URL → fbclid query parameter → GTM persistence layer`
+
+The documented `CHTML - UTM Persistence Guard` can capture `fbclid` alongside the UTM fields.
 
 ## 5. Persistence Mechanism
-When an `fbclid` is detected, it is extracted and written to a dedicated first-party cookie, ensuring the click identifier survives internal navigation.
+When present, the identifier is written to a first-party cookie so it remains available during navigation across the MsingiPACK subdomains.
 
 ## 6. Cookie Scope and TTL
-* **Cookie Name:** `saved_fbclid` (and/or Meta's native `_fbc`)
-* **Domain Scope:** `.msingipack.com`
-* **Path:** `/`
-* **Expiration:** 30 days (`max-age = 2592000`)
-* **Rationale:** Matches the 30-day UTM window, supporting delayed conversions typical of the course registration lifecycle.
+* **Cookie Name:** `saved_fbclid`.
+* **Domain Scope:** `.msingipack.com`.
+* **Path:** `/`.
+* **Expiration:** 30 days (`max-age=2592000`).
+
+Meta's native `_fbc` behavior is separate from this custom cookie and should not be represented as something the custom cookie replaces.
 
 ## 7. Retrieval Mechanism
-During a conversion event (like `purchase`), GTM retrieves the `saved_fbclid` value via a First-Party Cookie variable. 
+During a documented conversion event, GTM can read `saved_fbclid` through a cookie variable and make it available to the relevant client-side measurement payload if configured.
 
 ## 8. Relationship with Meta Attribution
-Meta natively attempts to create an `_fbc` cookie when an `fbclid` is present. Our custom persistence acts as an enforcement layer and ensures this identifier is explicitly formatted and available for our custom event payloads, particularly when crossing subdomains where native scripts might re-initialize and lose context.
+The custom persistence layer is a supporting measurement mechanism. It does not itself implement Meta CAPI, server-side matching, or guarantee deterministic ad attribution.
 
 ## 9. Relationship with UTM Parameters
-`fbclid` and UTM parameters are captured in parallel but serve different endpoints.
-`Landing URL ?utm_source=fb&fbclid=123` -> Both are saved. UTMs go to GA4; FBCLID goes to the Meta Pixel. 
+`fbclid` and UTM parameters are captured in parallel but serve different analytical purposes:
+`utm_*` → campaign metadata
+`fbclid` → Meta click identifier
 
 ## 10. Downstream Conversion Usage
-When a user completes a checkout on the Moodle platform:
-`saved_fbclid → GTM Variable → Meta Pixel (Standard Event) → Meta Ad Manager`
+The repository documents the intended path as:
+`saved_fbclid → GTM variable → client-side Meta measurement`
+
+Any server-side use would require a separate Meta CAPI implementation and is outside the current phase.
 
 ## 11. Failure Conditions
-* **No fbclid exists:** Occurs on direct visits, organic social clicks, or if the user has strict anti-tracking enabled.
-* **iOS14+ limitations:** Apple's ATT framework may result in Meta withholding the `fbclid` from the URL entirely.
-* **Browser stripping:** Some privacy-focused browsers actively strip known click identifiers (like `fbclid`) from URLs before the page even loads.
+* No `fbclid` exists.
+* Browser privacy controls strip or block the identifier.
+* The initial URL redirects before GTM can capture it.
+* Cookie storage is unavailable.
+* User changes device/browser.
 
 ## 12. Validation
-Tested using the Meta Pixel Helper extension and GTM Preview mode to confirm that the `fbclid` parameter successfully attaches to standard events (e.g., `CompleteRegistration`, `Purchase`) triggered on pages *other* than the landing page.
+Validation should use a tagged test URL and GTM/browser inspection to confirm:
+1. `fbclid` is present on landing.
+2. `saved_fbclid` is created.
+3. The cookie remains readable on the Academy subdomain.
+4. The configured downstream event contains the expected value, if that field is part of the active implementation.
 
 ## 13. Limitations
-The `fbclid` only links the event to Meta. It does not provide human-readable campaign names in GA4. It is strictly a platform-specific key.
+`fbclid` is not a substitute for Meta's full attribution and matching system. Its presence in a client-side cookie does not by itself prove that Meta will attribute a conversion to a specific campaign.
