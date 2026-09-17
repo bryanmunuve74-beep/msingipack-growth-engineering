@@ -1,63 +1,77 @@
 # GA4 vs Moodle Validation
 
 ## 1. Objective
-To compare Google Analytics 4 (GA4) event data against Moodle's backend user and account activity to determine measurement accuracy and identify expected or unexpected discrepancies.
+Compare GA4 measurement with Moodle application records to determine which differences are expected and which indicate tracking loss or implementation defects.
 
 ## 2. Systems Being Compared
 * **Measurement System:** Google Analytics 4 (GA4)
-* **Source of Truth:** Moodle LMS Database
+* **Application Source of Truth:** Moodle LMS
+* **Financial Source of Truth for purchases:** M-PESA / Bank records
 
 ## 3. Data Period
-* **Start Date:** [YYYY-MM-DD]
-* **End Date:** [YYYY-MM-DD]
+**Status:** Pending completion of an evidence-backed post-deployment reconciliation period.
+
+Record the exact start/end dates when the source exports are available.
 
 ## 4. Metric Definitions
-* **Registrations:** [Define what triggers this in GA4 vs Moodle]
-* **Logins:** [Define GA4 login event vs Moodle session creation]
-* **Purchases/Enrollments:** [Define GA4 purchase event vs Moodle enrollment confirmation]
+* **Registrations:** GA4 `sign_up` compared with confirmed Moodle account creation.
+* **Logins:** GA4 `login` compared with Moodle authentication/login records, where available.
+* **Purchases:** GA4 `purchase` events compared with Moodle enrollment/transaction records and then reconciled to M-PESA/Bank records.
+* **Revenue:** GA4 ecommerce revenue compared with verified financial records; GA4 is not the financial source of truth.
 
 ## 5. Registration Comparison
 
 | Metric | GA4 | Moodle | Difference | Expected? | Explanation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Registrations** | [X] | [Y] | [Z] | [Yes/No] | [Reason for discrepancy] |
+| **Registrations** | Pending | Pending | Pending | Pending | Requires matched source exports |
 
 ## 6. Login / Activation Comparison
 
 | Metric | GA4 | Moodle | Difference | Expected? | Explanation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Logins** | [X] | [Y] | [Z] | [Yes/No] | [Reason for discrepancy] |
+| **Logins** | Pending | Pending | Pending | Pending | Requires matched source exports |
 
 ## 7. Course Activity Comparison
 
 | Metric | GA4 | Moodle | Difference | Expected? | Explanation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Course Views** | [X] | [Y] | [Z] | [Yes/No] | [Reason for discrepancy] |
-| **Completions** | [X] | [Y] | [Z] | [Yes/No] | [Reason for discrepancy] |
+| **Course Views** | Pending | Pending | Pending | Pending | Metric definitions must be aligned first |
+| **Completions** | Pending | Pending | Pending | Pending | Requires a defined Moodle completion source |
 
 ## 8. Purchase / Enrollment Comparison
 
-| Metric | GA4 | Moodle | Difference | Expected? | Explanation |
+| Metric | GA4 | Moodle | Financial Records | Difference | Explanation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Purchases** | [X] | [Y] | [Z] | [Yes/No] | [Reason for discrepancy] |
-| **Revenue** | [$X] | [$Y] | [$Z] | [Yes/No] | [Reason for discrepancy] |
+| **Purchases** | Pending | Pending | Pending | Pending | Match using transaction identifiers |
+| **Revenue** | Pending | Pending | Pending | Pending | Financial records remain authoritative |
 
-## 9. Discrepancies Identified
-* [Detail the most significant gaps found in the tables above.]
+## 9. Discrepancy Classification
+Differences should be classified as:
+* Missing measurement event
+* Duplicate event
+* Delayed event/reporting
+* Attribution mismatch
+* Identity mismatch
+* Date/time mismatch
+* Platform reporting difference
+* Tracking failure
 
-## 10. Possible Causes
-* [e.g., Ad blockers preventing GA4 scripts]
-* [e.g., Users logging in from multiple devices]
-* [e.g., Timezone differences between GA4 and Moodle server]
+## 10. Reconciliation Method
+1. Export the same reporting period from GA4 and Moodle.
+2. Normalize timestamps and identifiers.
+3. Match confirmed registrations and purchases.
+4. For purchases, reconcile against M-PESA/Bank records.
+5. Classify unmatched records.
+6. Calculate variance only after the matching rules are documented.
+7. Preserve sanitized evidence supporting the result.
 
-## 11. Reconciliation Method
-* [How the data was exported, matched, and analyzed]
+## 11. Results
+**Status: Not yet measured in this repository.**
 
-## 12. Results
-* [Summary of overall data reliability and trust level]
+No production reconciliation result is claimed until the underlying source exports and a defined reporting period are available.
 
-## 13. Remaining Gaps
-* [Known issues that cannot be resolved currently]
-
----
-**Template Notes:** Fill Start/End Date, GA4 vs Moodle counts, Difference calculations, Expected flag, and Explanation for each metric | **Source of Truth:** Moodle DB
+## 12. Remaining Gaps
+* Exact post-deployment reporting period has not been documented here.
+* Course activity definitions require source-level alignment.
+* Client-side tracking can undercount backend activity when tags are blocked.
+* Cross-device identity can prevent perfect user-level matching.
