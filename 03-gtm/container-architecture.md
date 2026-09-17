@@ -1,54 +1,72 @@
 # GTM Container Architecture (GTM-K75VD2V6)
 
 ## 1. Container Overview
-This container (ID: GTM-K75VD2V6) manages the analytics, marketing tags, and custom JavaScript infrastructure for the Msingi PACK ecosystem. It is engineered to ensure measurement reliability by handling missing data gracefully, maintaining cross-subdomain attribution, and deduplicating e-commerce transactions.
+This container (ID: `GTM-K75VD2V6`) manages the client-side analytics and marketing measurement layer for the MsingiPACK ecosystem. It coordinates Data Layer events, attribution persistence, GA4 events, Meta Pixel events, and supporting variables/custom JavaScript.
+
+The architecture is intentionally separated from the financial source of truth: M-PESA/Bank confirms the transaction, Moodle represents application state, and GTM routes verified client-side measurement signals to analytics platforms.
 
 ## 2. Container Scope
-* **Marketing Site:** `msingipack.com` (Acquisition, lead capture, value proposition).
-* **LMS / Academy:** `academy.msingipack.com` (Registration, onboarding, M-PESA payment flows).
+* **Marketing Site:** `msingipack.com` (acquisition, landing pages, lead capture).
+* **LMS / Academy:** `academy.msingipack.com` (registration, onboarding, M-PESA payment flows).
 
 ## 3. Architecture Principles
-* **Priority-Driven Execution:** Foundational scripts (e.g., UTM persistence) must execute before standard pageview or interaction tags.
-* **Defensive Parsing:** All monetary values undergo `parseFloat()` and `isNaN()` validation to prevent silent JS runtime exceptions during empty data layer states.
-* **Single-Responsibility Triggers:** Triggers are scoped to exact interaction types (e.g., pure CSS selector matching for visibility, entirely decoupled from click-text).
+* **Priority-Driven Execution:** Foundational attribution capture executes before downstream conversion tags.
+* **Defensive Parsing:** Monetary values are validated before a purchase event is allowed to fire.
+* **Single-Responsibility Triggers:** Triggers are scoped to the event or interaction they actually measure.
+* **No Synthetic Revenue:** Missing or invalid transaction data blocks a purchase signal rather than inventing a fallback value.
+* **Client-Side Boundary:** GTM is used for browser-side orchestration. Meta CAPI and GA4 server-side Measurement Protocol delivery are future extensions, not part of the current container architecture.
 
 ## 4. Execution Priority
-1. **Priority 100:** `CHTML - UTM Persistence Guard` (captures and stores query parameters).
-2. **Standard Priority:** Base pixels (GA4 Configuration, Meta Base Pixel).
-3. **Event-Driven:** Behavioral tags (Clicks, Visibility) and Transactional tags (`mpesa_purchase_success`, `payment_failed`).
+1. **Priority 100:** `CHTML - UTM Persistence Guard` (captures incoming campaign parameters).
+2. **Standard Priority:** Base analytics/pixel tags.
+3. **Event-Driven:** Registration, interaction, `mpesa_purchase_success`, and `payment_failed` events.
 
 ## 5. Dependency Relationships
-The container relies on a strict flow of data from interaction to outbound payload. 
+The container relies on a strict flow of data from user/application state to outbound measurement.
 
 ### Purchase Flow
-`mpesa_purchase_success` (DataLayer Push)
+`mpesa_purchase_success` (Data Layer Push)
         ↓
 `Custom Event - mpesa_purchase_success` (Trigger)
         ↓
 `{{dlv - value}}`, `{{dlv - transaction_id}}`, `{{CJS - GA4 Ecommerce Items}}` (Variables)
         ↓
-`GA4 Event - M-PESA Purchase` + `Pixel - M-PESA Purchase` (Tags)
+Validation of transaction_id + numeric value
         ↓
-GA4 & Meta Events Manager (Destinations)
+`GA4 Event - M-PESA Purchase` + `Pixel - M-PESA Purchase`
+        ↓
+GA4 & Meta Events Manager
 
 ### Attribution Flow
 URL Query String
         ↓
 `CHTML - UTM Persistence Guard` (Priority 100)
         ↓
-`.msingipack.com` 1st-Party Cookie
+Root-domain first-party cookie
         ↓
-`{{cjs - Saved UTM Source}}` (Variable)
+Cookie / attribution variable
         ↓
-`GA4 Event - M-PESA Purchase` (Tag)
+Conversion event enrichment
 
 ## 6. Illustrative User Journey
-To demonstrate how this architecture maintains state across subdomains:
-1. **Day 0:** User clicks a Facebook ad and lands on `msingipack.com?utm_source=facebook&fbclid=123`.
-2. **Day 0 (Execution):** The Priority 100 CHTML tag reads the URL and writes `utm_source` and `fbclid` into a 1st-party cookie scoped to `.msingipack.com`.
-3. **Day 5:** User returns directly to `academy.msingipack.com` and completes an M-PESA payment.
-4. **Day 5 (Execution):** The GA4 Purchase tag reads the 1st-party cookie via the `{{cjs - Saved UTM Source}}` variable and appends it as a custom parameter (`saved_utm_source`). *Note: This feeds a custom dimension for Looker explorations; it does not automatically overwrite GA4's native session attribution model*.
+1. **Day 0:** User clicks a tagged Meta ad and lands on `msingipack.com?utm_source=facebook&fbclid=123`.
+2. **Day 0:** The persistence tag stores the available identifiers in root-domain cookies.
+3. **Day 5:** User returns to `academy.msingipack.com` and completes an M-PESA payment.
+4. **Day 5:** The purchase event carries the verified transaction identifier and numeric value. Saved attribution fields may be attached as custom reporting parameters.
 
-## 7. Known Constraints & Business Risks
-* **Hardcoded Financial Fallbacks:** To prevent JavaScript syntax errors (`SyntaxError`) causing total tracking failure on the Meta Pixel, `value` defaults to `300.00` if parsing fails. In the GA4 Items array, a missing price defaults to `2400.00`. 
-* **Business Risk:** If the backend data layer frequently fails to populate `value`, the system will report false, hardcoded revenue metrics. This architecture prioritizes script execution stability over absolute data silence; robust backend validation of the data layer push is critical.
+## 7. Purchase Data Integrity Rules
+* `transaction_id` must be present and non-empty.
+* `value` must resolve to a valid positive number before the purchase tag fires.
+* A malformed amount or missing transaction identifier causes the purchase signal to be blocked and logged for investigation.
+* No hardcoded KES 300 or KES 2400 fallback is used for financial reporting.
+
+## 8. Attribution Reporting Boundary
+Saved UTM values such as `saved_utm_source` are custom event parameters for analysis. They do **not** automatically overwrite GA4's native session/source attribution model.
+
+Native GA4 attribution should be evaluated from the GA4 acquisition dimensions and configured measurement architecture; custom saved UTM fields should be treated as supporting diagnostic/reporting data.
+
+## 9. Known Constraints & Business Risks
+* Browser privacy controls and ad blockers can prevent client-side tags from firing.
+* If a valid backend payment occurs but the browser never receives or executes the Data Layer event, analytics may undercount the financial source of truth.
+* Cross-device journeys remain difficult to reconcile without a durable authenticated identity strategy.
+* A future server-side implementation could reduce browser-side loss, but it is outside the current implementation scope.
