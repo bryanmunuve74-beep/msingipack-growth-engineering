@@ -1,34 +1,40 @@
 # Project Limitations
 
-## 1. Data Limitations
-Because the "Before" data contained fundamental flaws (duplicate events, missing parameters, and inflated clicks), a perfect 1:1 historical comparison is impossible. The "Before" baseline is mathematically skewed, meaning relative percentage improvements must be contextualized against data quality fixes.
+## 1. Historical Data Quality
+The historical baseline contained measurement-quality issues, including duplicate purchase events, missing campaign parameters, and UI interactions that could be mistaken for conversions. Historical figures therefore need to be interpreted as a baseline with known data-quality limitations rather than a perfect control dataset.
 
-## 2. Attribution Limitations
-The implementation does not solve the inherent limitations of multi-touch attribution. Cross-device journeys (e.g., clicking an ad on a mobile device but completing the Moodle registration on a desktop 3 days later) are still likely to break without forced user authentication across all touchpoints.
+## 2. Post-Deployment Measurement Window
+A complete, evidence-backed post-deployment business reporting period is not yet included in the repository. Conversion-rate, CAC, AOV, ROAS, retention, and revenue comparisons should therefore remain pending until the same definitions are applied over a defined period after deployment.
 
-## 3. Technical Limitations
-Client-side tracking remains vulnerable to client-side environments. Users with strict ad-blockers, Brave browser, or aggressive privacy extensions will not be tracked in GA4 or Meta, meaning our observed data will always represent a slight undercount of true backend volume.
+## 3. Attribution Limitations
+The implementation preserves campaign metadata across the documented MsingiPACK subdomains, but it does not remove the broader limitations of attribution. Cross-device journeys, anonymous-to-known identity changes, ad-platform modeling, and browser privacy controls can still create attribution gaps.
 
-## 4. Platform Limitations
-Both Meta and GA4 increasingly rely on modeled data to fill in gaps caused by iOS 14.5+ App Tracking Transparency (ATT) and Intelligent Tracking Prevention (ITP). The data visible in platform dashboards includes algorithmic estimations of conversions, which cannot be perfectly reconciled with exact backend accounting systems.
+## 4. Client-Side Tracking Limitations
+The current measurement architecture is primarily client-side. Browser restrictions, ad blockers, privacy extensions, consent settings, JavaScript failures, and network failures can prevent some analytics or advertising requests from being sent. Backend transaction records therefore remain the authoritative source for financial reconciliation.
 
-## 5. Testing Limitations
-The deployment of the new tracking architecture was pushed live globally rather than as a split test (due to the necessity of fixing broken revenue data immediately). Therefore, some pre/post metric variations may be influenced by external variables rather than the technical implementation itself.
+## 5. Platform Reporting Differences
+GA4, Meta, Moodle, and payment records use different identities, processing rules, attribution logic, and reporting windows. Their counts are not expected to match one-to-one. Reconciliation should use explicit matching rules rather than direct numerical equality.
 
-## 6. Sample-Size Limitations
-At the time of writing, the "After" measurement period only spans [X] weeks. Long-term metrics—particularly those related to user retention, course completion, and Life Time Value (LTV)—have not reached sufficient volume to establish statistical significance. 
+## 6. Testing Limitations
+The implementation was applied to repair measurement defects rather than as a controlled experiment. The repository therefore documents implementation validation and measurement improvements, not a randomized causal estimate of commercial impact.
 
-## 7. Revenue Measurement Limitations
-Payment reconciliation between Moodle, the payment gateway, and GA4 can experience latency. Delayed webhooks or pending bank transfers mean that daily revenue figures in analytics platforms may lag backend financial reporting by 24–48 hours.
+## 7. Sample-Size / Outcome Limitations
+Commercial outcomes such as retention, course completion, lifetime value, and sustained conversion improvement require sufficient post-deployment volume and a defined observation period. Those outcomes are not claimed in this phase without supporting evidence.
 
-## 8. Causal Inference Limitations
-While we observed a drop in CPAs and an improvement in ROAS post-implementation, these outcomes may be influenced by concurrent factors outside this project's scope, including seasonality, algorithmic learning phases on ad platforms, and changes in competitor ad spend.
+## 8. Revenue Reconciliation Limitations
+Payment activity may be reflected at different times across Moodle, M-PESA, bank records, and analytics platforms. Pending transactions, asynchronous callbacks, manual reconciliation, or reporting delays can create temporary differences. Final financial reporting should be reconciled to M-PESA/Bank records rather than analytics events alone.
 
-## 9. Unimplemented Recommendations
-Server-side tracking (via GTM Server-Side) was mapped as an opportunity but was deferred to Phase 2 due to infrastructure costs. Consequently, we are still wholly reliant on the client's browser to dispatch data to advertising endpoints.
+## 9. Causal Inference Limitations
+Any future change in conversion rate, revenue, CAC, or ROAS should be interpreted alongside other changes that occurred during the same period, such as traffic mix, campaign spend, pricing, seasonality, product changes, and ad-platform learning. The tracking implementation alone should not be treated as proof of causal commercial uplift.
 
-## 10. Outstanding Risks
-Changes to third-party cookie policies (e.g., Google Chrome's evolving Privacy Sandbox) and regional data regulations (e.g., Kenya Data Protection Act) represent ongoing risks to the current tracking architecture. The setup will require routine maintenance to remain compliant and functional.
+## 10. Unimplemented Server-Side Enhancements
+GTM Server-Side, GA4 Measurement Protocol, and Meta Conversions API are documented as future options rather than completed components. They may reduce some browser-side measurement loss, but they would still require careful identity, event deduplication, consent, security, and backend integration design.
 
-## 11. Future Measurement Improvements
-To close the remaining gap between front-end tracking and backend reality, the next logical step is to implement the Measurement Protocol for GA4 and the Conversions API (CAPI) for Meta. This will allow the Moodle server to send definitive conversion and refund data directly to analytics, bypassing the browser entirely.
+## 11. Privacy and Compliance
+The public repository must exclude credentials, payment details, personally identifiable information, and other sensitive production data. Any user identifiers or enhanced-conversion data used in production should follow the applicable privacy, consent, retention, and security requirements.
+
+## 12. Ongoing Maintenance
+The architecture depends on third-party platforms, browser behavior, Moodle implementation details, and tracking APIs. Changes to any of these layers can affect event collection, attribution, or reconciliation. The measurement system should therefore be periodically re-tested after material platform or application changes.
+
+## 13. Future Measurement Improvements
+The next measurement phase should focus on completing a defined GA4 ↔ Moodle ↔ M-PESA/Bank reconciliation period, monitoring duplicate purchases by transaction ID, repeating the performance audit, and evaluating server-side measurement only where the remaining browser-side loss justifies the added complexity.
