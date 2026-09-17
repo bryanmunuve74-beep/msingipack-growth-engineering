@@ -271,11 +271,17 @@ Production credentials, access tokens, payment credentials, and personally ident
 
 ---
 
-## Project Status
+## Final Project Status
 
-The repository documents the investigation, architecture, implementation, debugging, validation methodology, and performance analysis performed during the MsingiPACK Growth Engineering project.
+**Version:** 1.0 — finalized documentation baseline  
+**Date:** September 17, 2026  
+**Status:** Ready to use as a public technical portfolio case study, subject to the evidence-sanitization checks described below.
 
-Some commercial outcomes require additional post-deployment measurement before they can be treated as validated results.
+The repository now documents the investigation, architecture, implementation, debugging, validation methodology, performance analysis, business implications, and explicit limitations of the MsingiPACK Growth Engineering project.
+
+Commercial outcomes such as sustained conversion uplift, revenue growth, CAC improvement, or ROAS improvement are intentionally not presented as validated results without a complete post-deployment reporting period.
+
+Before publishing production evidence, confirm that screenshots and sanitized outputs contain no credentials, payment details, personal data, or other confidential information.
 
 ---
 
@@ -292,6 +298,7 @@ Start with:
 7. [`07-data-validation/reconciliation-methodology.md`](07-data-validation/reconciliation-methodology.md)
 8. [`08-performance/performance-findings.md`](08-performance/performance-findings.md)
 9. [`09-results/business-impact.md`](09-results/business-impact.md)
+10. [`09-results/limitations.md`](09-results/limitations.md)
 
 ---
 
