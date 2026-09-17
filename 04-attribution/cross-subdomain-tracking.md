@@ -1,52 +1,50 @@
 # Cross-Subdomain Tracking
 
 ## 1. Overview
-The most critical technical hurdle in the MsingiPACK tracking architecture is the transition between the marketing site and the learning management system (LMS). This document explains how attribution data successfully survives the movement from `msingipack.com` to `academy.msingipack.com`.
+MsingiPACK operates across `msingipack.com` and `academy.msingipack.com`. This document explains how custom attribution data is preserved between those subdomains and distinguishes that mechanism from native GA4 session/identity measurement.
 
 ## 2. Domain Architecture
-MsingiPACK operates across two primary environments:
-* **`msingipack.com`**: Marketing / acquisition environment (Landing pages, information).
-* **`academy.msingipack.com`**: Moodle / conversion environment (Registration, course consumption, checkout).
+* **`msingipack.com`**: Marketing/acquisition environment.
+* **`academy.msingipack.com`**: Moodle/LMS environment for registration, learning, and payment.
 
-Because both are subdomains of the root domain, they can share first-party cookies if scoped correctly.
+Both hosts share the `msingipack.com` root domain, so appropriately scoped first-party cookies can be readable by both.
 
 ## 3. Original Tracking Problem
-Historically, the user flow broke tracking:
-`Ad click → msingipack.com (UTMs present) → navigation → academy.msingipack.com (UTMs stripped) → original campaign context unavailable at conversion`
+`Ad click → msingipack.com → navigation → academy.msingipack.com → campaign parameters no longer in URL`
 
-## 4. Why Attribution Was Lost
-Browsers treat subdomains as distinct hostnames. If a cookie is set strictly on `msingipack.com` or `www.msingipack.com`, it cannot be read by `academy.msingipack.com`. Furthermore, native URL parameters are lost the moment a user clicks a link to the academy, leaving the Moodle environment blind to the acquisition source.
+The persistence layer addresses the loss of campaign metadata from the URL.
 
-## 5. Cookie Domain Strategy
-To bridge the gap, the persistence layer explicitly sets the domain scope to the root.
-* **Domain:** `.msingipack.com` (Note the leading dot).
-* **Available to:** `msingipack.com`, `www.msingipack.com`, `academy.msingipack.com`, and any future subdomains.
+## 4. Cookie Domain Strategy
+Custom attribution cookies are scoped to `.msingipack.com` with path `/`, allowing the marketing site and Academy subdomain to access the same stored campaign fields.
 
-## 6. Attribution Continuity
-By elevating the cookie scope to the root domain, the architecture guarantees continuity:
-`Initial campaign → utm / fbclid in URL → root-domain cookie created → marketing site browsing → user clicks to academy subdomain → cookie remains accessible → conversion fires with attribution`
+## 5. Attribution Continuity
+`UTM/fbclid in URL → root-domain cookie → marketing site → Academy subdomain → conversion event can read saved values`
 
-## 7. GA4 Identity / Session Considerations
-It is vital to note: **Attribution persistence ≠ GA4 session continuity**.
-While our custom cookies ensure *campaign metadata* survives, GA4 still needs to recognize the *user* across subdomains to prevent starting a new session. This is achieved by ensuring GA4's native `_ga` cookie is also scoped to the root domain (which GA4 does automatically in most modern configurations) and ensuring GTM loads the identical GA4 Measurement ID across both environments.
+This preserves **campaign metadata**. It does not by itself guarantee that GA4 treats the journey as one session or assigns native acquisition credit to the stored values.
 
-## 8. User Navigation Flow
-1. User lands on `www.msingipack.com/course-promo`.
-2. Root-level cookies (`saved_utm_source`, etc.) are written.
-3. User clicks "Enroll Now".
-4. User lands on `academy.msingipack.com/login/signup.php`.
-5. The `academy` GTM container reads the root-level cookies without interruption.
+## 6. GA4 Identity / Session Considerations
+**Attribution persistence ≠ GA4 session continuity.**
 
-## 9. GTM Implementation
-This architecture allows us to use standard First-Party Cookie variables in GTM on the academy subdomain. Because the cookie is root-scoped, `{{cookie - saved_utm_source}}` resolves successfully on Moodle pages without requiring complex URL pass-throughs or server-side syncs.
+The custom cookies are separate from GA4's own client/session identifiers. Native GA4 cross-domain measurement should be validated through the GA4 configuration and linker behavior where applicable. The fact that two hosts can read a custom root-domain cookie should not be presented as proof that GA4 has maintained a single session.
 
-## 10. Known Redirect Risks
-The most significant threat to this architecture involves application-level redirects.
-Example: `User → preview_courses.php → Moodle redirect → homepage`.
-If an ad points directly to a page that immediately issues a 301/302 redirect *before* GTM can load, the UTMs in the URL are destroyed before the persistence script can capture them. Our architecture requires the initial landing page to render fully so GTM can execute the `CHTML - UTM Persistence Guard`.
+## 7. User Navigation Flow
+1. User lands on the marketing site with tagged campaign parameters.
+2. Root-domain attribution cookies are written.
+3. User navigates to `academy.msingipack.com`.
+4. Academy pages can read the saved attribution values.
+5. Conversion events may include those saved values as supporting parameters.
 
-## 11. Validation
-Validation confirmed that a cookie created on `www` could be read via `document.cookie` in the browser console while viewing `academy`. 
+## 8. GTM Implementation
+The Academy container can use first-party cookie variables to read the root-scoped attribution fields without requiring the values to remain in every URL.
 
-## 12. Limitations
-This solution works seamlessly for subdomains (e.g., `academy.domain.com`), but cannot be used for cross-domain tracking (e.g., `msingipack.com` to `entirely-different-domain.com`). If MsingiPACK ever moves checkout to a third-party domain (like a standalone Shopify or Stripe checkout domain), this root-cookie strategy will fail and require GA4 linker parameters.
+## 9. Known Redirect Risks
+If an application/server redirect occurs before the GTM persistence tag executes, the browser may never capture the original query parameters. This is especially relevant to protected Moodle URLs that redirect unauthenticated users.
+
+## 10. Validation
+The documented validation checks that an attribution cookie created on the marketing host remains readable from the Academy host. Separate GA4 session/linker validation is required when making claims about native GA4 session continuity.
+
+## 11. Limitations
+* Root-domain cookies work for these MsingiPACK subdomains but not for a separate registrable domain.
+* Cookies do not bridge devices.
+* Browser privacy controls can limit persistence.
+* Third-party checkout domains would require a different measurement architecture.
