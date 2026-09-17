@@ -3,16 +3,20 @@
 ## CJS - GA4 Ecommerce Items (`cjs_ga4_ecommerce_items.js`)
 
 ### Purpose
-Constructs a structured GA4 items array while safeguarding against unparsed string values. 
+Constructs a structured GA4 `items` array from validated purchase data.
 
 ### Logic & Output
-The script extracts the data layer value, applies `parseFloat()`, and returns a strictly formatted array compliant with GA4 schema requirements:
-* `item_id`: 'MSINGI_ACADEMY_SUB'
-* `item_name`: 'MsingiPACK Academy Subscription'
-* `item_category`: 'Subscriptions'
-* `quantity`: 1
+The script reads the purchase value from the Data Layer, validates it as a positive numeric value, and returns a GA4-compatible item structure:
+* `item_id`: `MSINGI_ACADEMY_SUB`
+* `item_name`: `MsingiPACK Academy Subscription`
+* `item_category`: `Subscriptions`
+* `quantity`: `1`
+* `price`: validated transaction value
 
-### Edge Cases & Fallback Behavior
-If the data layer pushes an empty or malformed `value`, the `isNaN(rawValue)` check evaluates to true. The script defensively sets the item `price` to a hardcoded `2400.00`. 
+### Validation Behavior
+If the Data Layer contains an empty, malformed, or non-positive purchase value, the function should return an invalid/empty result that prevents the purchase tag from sending a financial conversion.
 
-*Validation Note:* This guarantees the GA4 tag will execute without throwing a JavaScript `SyntaxError`, but carries the business risk of reporting a default $2400.00 transaction in GA4 even if the actual user transaction failed or was fundamentally altered.
+A hardcoded monetary fallback is intentionally **not** used. A missing value is a data-quality failure that should be investigated rather than converted into synthetic revenue.
+
+### Data Integrity Principle
+The M-PESA/Bank transaction is the financial source of truth. GTM custom JavaScript is responsible for validating and formatting the value, not inventing a value when the source data is unavailable.
