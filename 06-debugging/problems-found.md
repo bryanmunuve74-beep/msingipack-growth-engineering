@@ -1,57 +1,62 @@
 # Problems Found
 
 ## 1. Overview
-This document inventories the actual technical problems discovered during the MsingiPACK tracking integration. It distinguishes observed front-end symptoms from their verified technical root causes to ensure structural fixes to the architecture.
+This document inventories the technical problems discovered during the MsingiPACK tracking investigation. It separates observed symptoms from the technical causes supported by testing.
 
 ## 2. Problem Classification
-Problems are categorized into three primary domains:
-*   **Attribution & Routing:** Breakages in session continuity or parameter loss.
-*   **Registration & Funnel Logic:** Misalignment between front-end tracking events and the Moodle database source of truth.
-*   **Data Integrity:** Duplication of high-value conversion events.
+Problems are categorized into:
+* **Attribution & Routing:** Campaign parameters and measurement continuity across the marketing site and Moodle.
+* **Registration & Funnel Logic:** UI intent being measured as a completed business outcome.
+* **Data Integrity:** Duplicate or incomplete conversion measurement.
+* **Performance:** Front-end loading issues identified in the separate performance audit.
 
 ## 3. Acquisition / Routing Problems
-*   **Symptom:** Paid traffic landing on specific MsingiPACK course pages shows a near 100% bounce rate, while "Direct" traffic shows unusually high conversion rates.
-*   **Verified Cause:** Moodle's authentication gate intercepts unauthenticated traffic requesting protected URLs. The HTTP 302 redirect to `academy.msingipack.com/login/index.php` strips query parameters (UTMs) before the page loads.
+* **Symptom:** Paid traffic landing on protected course URLs could lose campaign parameters after Moodle authentication redirects.
+* **Verified Cause:** The protected request can redirect unauthenticated users to `/login/index.php`; the original query parameters were not retained in the resolved URL.
 
 ## 4. Registration / Funnel Problems
-*   **Symptom:** Marketing analytics report significantly more registrations than the actual number of user accounts created in the Moodle backend.
-*   **Verified Cause:** The GTM trigger for registration is bound to a front-end CTA click rather than confirmed account creation. Form validation errors and drop-offs trigger false conversions.
+* **Symptom:** Registration measurement could represent CTA intent rather than a completed account.
+* **Verified Cause:** The earlier GTM registration trigger was tied to a front-end interaction instead of confirmed Moodle account creation.
 
 ## 5. Attribution Problems
-*   **Symptom:** Traffic moving from the main marketing site to the LMS loses its original acquisition source.
-*   **Verified Cause:** Without proper cross-domain linking or root-domain cookie persistence, the session breaks upon crossing the boundary from `msingipack.com` to `academy.msingipack.com`.
+* **Symptom:** Campaign metadata was not reliably available later in the LMS journey.
+* **Verified Cause:** URL parameters disappear during navigation and were not previously persisted before the Moodle authentication flow.
 
 ## 6. Conversion Tracking Problems
-*   **Symptom:** Activation (first login) is not being reliably tied back to the original acquisition source.
-*   **Verified Cause:** Registration and activation are distinct steps. The lack of persistent tracking parameters during the Moodle account creation process orphans the subsequent activation event.
+* **Symptom:** Activation could not always be cleanly connected to the earlier acquisition context.
+* **Verified Cause:** Registration and activation are distinct states, and client-side attribution persistence does not automatically create cross-device identity continuity.
 
 ## 7. Payment / Revenue Measurement Problems
-*   **Symptom:** E-commerce revenue in GA4 is inflated compared to actual database enrollment records.
-*   **Verified Cause:** Users who refresh the Moodle course enrollment success page re-trigger the purchase event. 
+* **Symptom:** Historical ecommerce reporting contained duplicate purchase events relative to unique transactions.
+* **Verified Cause:** Purchase measurement could be retriggered by success-page reloads without reliable transaction identity.
 
 ## 8. Analytics Configuration Problems
-*   **Symptom:** Cross-domain traffic is initiating new sessions.
-*   **Verified Cause:** The GA4 web data stream is not configured to explicitly link `msingipack.com` and `academy.msingipack.com`.
+* **Symptom:** Native GA4 session continuity required explicit validation across the marketing site and Academy.
+* **Verified Cause:** GA4 measurement configuration and custom attribution persistence are separate mechanisms and must not be treated as interchangeable.
 
 ## 9. Performance Problems
-*   **Symptom:** Minor delays in tag execution on the registration page.
-*   **Verified Cause:** No blocking performance issues found; data layer initialization is operating within acceptable thresholds (< 200ms).
+* **Symptom:** The separate PageSpeed audit identified substantial mobile loading and rendering bottlenecks.
+* **Verified Cause:** Large image payloads, render-blocking resources, and Moodle page structure contributed to the measured performance problems. Detailed findings are documented in `08-performance/`.
 
 ## 10. Data Integrity Problems
-*   **Symptom:** GA4 processes duplicate transactions.
-*   **Verified Cause:** The data layer push is not passing a unique `transaction_id` from the Moodle database to deduplicate the hits.
+* **Symptom:** Historical GA4 purchase measurement contained duplicate transactions.
+* **Verified Cause:** Purchase events were not consistently tied to a stable transaction identifier in the earlier implementation.
 
 ## 11. Problem Severity
-*   **Critical:** Registration logic failure (P-002), Subdomain session breaks (P-004).
-*   **High:** Parameter stripping (P-001), Purchase duplication (P-003).
-*   **Medium:** Orphaned activation events (P-005).
+* **Critical:** Registration measurement misalignment; campaign parameter loss on protected redirects.
+* **High:** Historical purchase duplication and attribution continuity issues.
+* **Medium:** Activation attribution limitations and performance-related conversion friction.
 
 ## 12. Problem Summary Table
 
 | ID | Problem | System | Symptom | Business Impact | Severity | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| P-001 | Parameter stripping | Moodle | Paid traffic misclassified | Attribution loss | Critical | Fixed |
-| P-002 | Registration fires on CTA | GTM | False conversions | Inflated lead count | Critical | Fixed |
-| P-003 | Purchase duplicates | GA4 | Multiple events per buyer | Revenue distortion | High | Fixed |
-| P-004 | Session break across subdomains | GA4 | Direct traffic inflation | Attribution loss | Critical | Fixed |
-| P-005 | Orphaned activation | Moodle | Funnel drop-off | Incomplete user journey | Medium | Pending |
+| P-001 | Parameter stripping | Moodle | Paid traffic loses URL campaign parameters | Attribution loss | Critical | Fix implemented / validation documented |
+| P-002 | Registration fires on CTA | GTM | Intent can be counted as registration | Inflated conversion counts | Critical | Fix implemented / validation documented |
+| P-003 | Purchase duplicates | GA4/GTM | Multiple events for one transaction | Revenue measurement distortion | High | Transaction-ID architecture implemented |
+| P-004 | Attribution/session continuity | GA4/GTM | Native session continuity cannot be assumed from custom cookies | Attribution uncertainty | High | Architecture/configuration documented |
+| P-005 | Activation attribution | Moodle/GA4 | Cross-device journeys may lose continuity | Incomplete journey analysis | Medium | Partially addressed; ongoing limitation |
+| P-006 | Mobile performance | Moodle | Heavy payload and delayed rendering | Landing-page friction | High | Documented; deployment/re-audit dependent on access |
+
+## 13. Scope Boundary
+Performance findings are not represented as tag-execution problems. They are a separate technical workstream documented under `08-performance/`.
